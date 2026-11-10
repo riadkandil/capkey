@@ -47,7 +47,7 @@ const DEFAULTS = {
 };
 const EXAMPLE = 'https://www.youtube.com/watch?v=arj7oStGLkU';
 const API = (document.querySelector('meta[name="capkey-api"]')?.content || '').trim().replace(/\/+$/, '');
-const apiUrl = (path) => (API ? `${API}/${path}` : path);
+const apiUrl = (path, base = S.apiBase) => (base ? `${base}/${path}` : path);
 
 const S = {
   settings: { ...DEFAULTS, ...store.get('settings', {}) },
@@ -163,10 +163,19 @@ async function fetchCaptions(id, track) {
   const bundled = await loadBundled(id);
   if (bundled && (!track || track === bundled.track.id)) return bundled;
   if (await hasApi()) {
-    const r = await fetch(apiUrl(`api/captions?v=${id}` + (track ? `&track=${encodeURIComponent(track)}` : '')));
-    const data = await r.json().catch(() => ({ error: `The caption server answered ${r.status}.` }));
-    if (!r.ok) throw new Error(data.error || `The caption server answered ${r.status}.`);
-    return data;
+    const url = apiUrl(`api/captions?v=${id}` + (track ? `&track=${encodeURIComponent(track)}` : ''));
+    // YouTube sometimes walls the hosted caption server (503); a fresh request usually gets through.
+    const TRIES = 6;
+    for (let k = 1; ; k++) {
+      const r = await fetch(url).catch(() => null);
+      const data = r ? await r.json().catch(() => ({ error: `The caption server answered ${r.status}.` }))
+        : { error: 'The caption server could not be reached.' };
+      if (r && r.ok) return data;
+      if (k >= TRIES || (r && r.status !== 503)) throw new Error(data.error || `The caption server answered ${r?.status}.`);
+      const line = $('line').querySelector('.loading');
+      if (line) line.textContent = `YouTube is slow to answer, trying again (${k + 1} of ${TRIES})…`;
+      await new Promise((res) => setTimeout(res, 300 + 200 * k));
+    }
   }
   if (bundled) return bundled;
   throw new Error(STATIC_MSG);
@@ -186,12 +195,17 @@ async function loadBundled(id) {
   }
 }
 
-/** Is there a caption server (python server.py, or the one named in <meta name="capkey-api">)? */
+/** Is there a caption server? python server.py on the same origin first, then <meta name="capkey-api">. */
 function hasApi() {
-  S.apiCheck ??= fetch(apiUrl('api/health'))
+  const probe = (base) => fetch(apiUrl('api/health', base), { cache: 'no-store' })
     .then((r) => r.ok && (r.headers.get('content-type') || '').includes('json'))
-    .catch(() => false)
-    .then((ok) => (S.api = ok));
+    .catch(() => false);
+  S.apiCheck ??= (async () => {
+    for (const base of API ? ['', API] : ['']) {
+      if (await probe(base)) { S.apiBase = base; return (S.api = true); }
+    }
+    return (S.api = false);
+  })();
   return S.apiCheck;
 }
 

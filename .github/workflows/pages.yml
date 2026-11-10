@@ -24,6 +24,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Test the client logic
         run: node tests/test_lib.mjs
+      - name: Test the caption Worker
+        run: node worker/test_worker.mjs
       - name: Test the caption parser and server
         run: python3 -m unittest discover -s tests
       - uses: actions/configure-pages@v5

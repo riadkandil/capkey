@@ -6,21 +6,17 @@ check, Enter again for the next sentence.
 
 **Try it:** https://riadkandil.github.io/capkey/
 
-## Two ways to run it
+## How captions are fetched
 
-| | Recommended videos | Any YouTube link | Pasted transcript |
-|---|---|---|---|
-| Online (GitHub Pages) | yes | no (see below) | yes |
-| On your computer (`python server.py`) | yes | yes | yes |
+Browsers are not allowed to read YouTube's captions directly, so a small server fetches them:
 
-Browsers are not allowed to read YouTube's captions directly, so a small server has to fetch
-them. GitHub Pages only hosts files, so the online version can open:
-
-- the **recommended videos** (17 TED talks; their captions are bundled in `static/data/`), and
-- **any video with a transcript you paste** (`.srt`, `.vtt`, or the text of YouTube's
-  "Show transcript" panel).
-
-To open any link, run the server yourself (Python 3.10+, standard library only):
+- **Online** (GitHub Pages): the site uses the caption server in `worker/`, a Cloudflare Worker
+  at `capkey.ice-habits.workers.dev` (named in `<meta name="capkey-api">` in `static/index.html`;
+  it only answers pages on `riadkandil.github.io` and `localhost`). YouTube sometimes shows
+  Cloudflare's addresses a "confirm you're not a bot" wall; the Worker answers 503 then and
+  the site retries with fresh requests (up to 6), which nearly always get through.
+- **On your computer**: `python server.py` does the same work itself (Python 3.10+,
+  standard library only), and the site prefers it when it is there.
 
 ```
 git clone https://github.com/riadkandil/capkey
@@ -29,9 +25,18 @@ python server.py                 # http://127.0.0.1:8770
 python server.py --host 0.0.0.0  # reachable from a phone on the same network
 ```
 
-A hosted copy can also use a caption server elsewhere: put its address in
-`<meta name="capkey-api">` in `static/index.html` (it must answer `GET /api/captions` and
-`GET /api/health` like `server.py` and allow the site's origin with CORS).
+If no caption server answers, the site still opens the **recommended videos** (17 TED talks,
+captions bundled in `static/data/`) and **any video with a transcript you paste** (`.srt`,
+`.vtt`, or the text of YouTube's "Show transcript" panel).
+
+Deploy the Worker (needs a Cloudflare account; edit the allowed origins in `worker/worker.js`
+for your own copy):
+
+```
+cd worker
+npm test
+npx wrangler@4 deploy
+```
 
 ## Features
 
@@ -61,6 +66,7 @@ python tools/bundle_videos.py             # re-fetch the recommended videos' cap
 ```
 
 - `server.py` - static files + `GET /api/captions?v=<id>[&track=en.manual|en.auto|...]`
+- `worker/worker.js` - the same API as a Cloudflare Worker (`worker/test_worker.mjs` = its tests)
 - `youtube.py` - fetches the caption tracks through YouTube's player API, parses srv3 XML
 - `static/js/lib.js` - links, subtitle files, word timing, sentences, answer checking
 - `static/js/player.js` - YouTube IFrame player that plays a range and pauses at its end
