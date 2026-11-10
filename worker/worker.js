@@ -13,8 +13,9 @@ const HEADERS = { 'User-Agent': UA, 'Accept-Language': 'en-US,en;q=0.9', Cookie:
 const FALLBACK_KEY = 'AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8';
 // YouTube shows some Cloudflare addresses a "Sign in to confirm you're not a bot" wall, depending on
 // the client the request claims to be; these are tried in turn until one gets captions.
-// (Measured 2026-11-10: ~25-40 % of requests are walled, for every client at once; the embedded web / TV
-// clients never helped and were dropped.)
+// (Measured 2026-11-10: 20-75 % of requests are walled depending on the hour, for every client and every
+// call inside that request at once - it follows the outgoing address. The embedded web / TV clients never
+// helped and were dropped; cookies / Accept-Language make no difference.)
 export const CLIENTS = [
   { name: 'android', client: { clientName: 'ANDROID', clientVersion: '20.10.38', androidSdkVersion: 30, osName: 'Android', osVersion: '11' },
     ua: 'com.google.android.youtube/20.10.38 (Linux; U; Android 11) gzip' },
@@ -24,7 +25,8 @@ export const CLIENTS = [
     ua: 'com.google.ios.youtube/20.10.4 (iPhone16,2; U; CPU iOS 18_3_2 like Mac OS X;)' },
 ];
 const RETRY_STATUS = new Set(['LOGIN_REQUIRED', 'UNPLAYABLE_BOT']);
-const CACHE_SECONDS = 6 * 3600;
+// Captions rarely change, and every successful fetch saves later visitors from YouTube's bot wall.
+const CACHE_SECONDS = 7 * 24 * 3600;
 
 export class CaptionError extends Error {
   constructor(message, status = 422) {

@@ -165,7 +165,7 @@ async function fetchCaptions(id, track) {
   if (await hasApi()) {
     const url = apiUrl(`api/captions?v=${id}` + (track ? `&track=${encodeURIComponent(track)}` : ''));
     // YouTube sometimes walls the hosted caption server (503); a fresh request usually gets through.
-    const TRIES = 6;
+    const TRIES = 10;
     for (let k = 1; ; k++) {
       const r = await fetch(url).catch(() => null);
       const data = r ? await r.json().catch(() => ({ error: `The caption server answered ${r.status}.` }))
@@ -174,7 +174,7 @@ async function fetchCaptions(id, track) {
       if (k >= TRIES || (r && r.status !== 503)) throw new Error(data.error || `The caption server answered ${r?.status}.`);
       const line = $('line').querySelector('.loading');
       if (line) line.textContent = `YouTube is slow to answer, trying again (${k + 1} of ${TRIES})…`;
-      await new Promise((res) => setTimeout(res, 300 + 200 * k));
+      await new Promise((res) => setTimeout(res, Math.min(250 + 150 * k, 1000)));
     }
   }
   if (bundled) return bundled;

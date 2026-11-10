@@ -14,7 +14,7 @@ Browsers are not allowed to read YouTube's captions directly, so a small server 
   at `capkey.ice-habits.workers.dev` (named in `<meta name="capkey-api">` in `static/index.html`;
   it only answers pages on `riadkandil.github.io` and `localhost`). YouTube sometimes shows
   Cloudflare's addresses a "confirm you're not a bot" wall; the Worker answers 503 then and
-  the site retries with fresh requests (up to 6), which nearly always get through.
+  the site retries with fresh requests (up to 10), which nearly always get through.
 - **On your computer**: `python server.py` does the same work itself (Python 3.10+,
   standard library only), and the site prefers it when it is there.
 
